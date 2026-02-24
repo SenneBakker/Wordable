@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Practice - {{ wordlist.name }}{% endblock %}
+
+{% block content %}
+<div class="practice-container">
+    <div class="practice-header">
+        <h1>{{ wordlist.name }}</h1>
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {{ (progress.current / progress.total * 100) }}%"></div>
+        </div>
+        <div class="progress-text">
+            <span>Word {{ progress.current }} of {{ progress.total }}</span>
+            {% if progress.incorrect_count > 0 %}
+                <span class="incorrect-badge">{{ progress.incorrect_count }} to review</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="practice-card">
+        <div class="word-prompt">
+            <span class="prompt-label">Translate to Language B:</span>
+            <h2 class="word-display">{{ word.language_a }}</h2>
+        </div>
+
+        <form method="POST" class="practice-form">
+            <div class="form-group">
+                <input 
+                    type="text" 
+                    name="answer" 
+                    id="answerInput" 
+                    placeholder="Type your answer here..." 
+                    autocomplete="off"
+                    autofocus
+                    required
+                    {% if retry %}class="retry-input"{% endif %}
+                >
+                {% if retry %}
+                <p class="retry-hint">This is your second attempt - try again!</p>
+                {% endif %}
+            </div>
+            <div class="form-actions centered">
+                <button type="submit" class="btn btn-primary btn-large">Submit Answer</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="practice-footer">
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Exit Practice</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-focus on the input field
+document.getElementById('answerInput').focus();
+
+// Clear input on load (useful after form submission)
+window.addEventListener('load', function() {
+    const input = document.getElementById('answerInput');
+    if (!input.classList.contains('retry-input')) {
+        input.value = '';
+    }
+});
+</script>
+{% endblock %}

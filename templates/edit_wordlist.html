@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Wordlist - Language Learning App{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Edit Wordlist</h1>
+    <p>Update your wordlist name and word pairs</p>
+</div>
+
+<form method="POST" class="wordlist-form">
+    <div class="form-group">
+        <label for="name">Wordlist Name *</label>
+        <input type="text" id="name" name="name" value="{{ wordlist.name }}" required>
+    </div>
+
+    <div class="form-section">
+        <div class="section-header">
+            <h3>Word Pairs</h3>
+            <button type="button" class="btn btn-secondary" onclick="addWordRow()">+ Add Row</button>
+        </div>
+
+        <div class="word-table">
+            <table id="wordsTable">
+                <thead>
+                    <tr>
+                        <th>Language A (e.g., English)</th>
+                        <th>Language B (e.g., Portuguese)</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="wordRows">
+                    {% for word in words %}
+                    <tr>
+                        <input type="hidden" name="word_ids[]" value="{{ word['id'] }}">
+                        <td><input type="text" name="language_a[]" value="{{ word.language_a }}" required></td>
+                        <td><input type="text" name="language_b[]" value="{{ word.language_b }}" required></td>
+                        <td><button type="button" class="btn-icon btn-remove" onclick="removeRow(this)" title="Remove row">×</button></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="form-actions">
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">Update Wordlist</button>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addWordRow() {
+    const tbody = document.getElementById('wordRows');
+    const newRow = document.createElement('tr');
+    newRow.innerHTML = `
+        <td><input type="text" name="language_a[]" placeholder="word"></td>
+        <td><input type="text" name="language_b[]" placeholder="translation"></td>
+        <td><button type="button" class="btn-icon btn-remove" onclick="removeRow(this)" title="Remove row">×</button></td>
+    `;
+    tbody.appendChild(newRow);
+}
+
+function removeRow(button) {
+    const row = button.closest('tr');
+    const tbody = document.getElementById('wordRows');
+    
+    // Prevent removing the last row
+    if (tbody.children.length > 1) {
+        row.remove();
+    } else {
+        alert('You must have at least one word row!');
+    }
+}
+</script>
+{% endblock %}
