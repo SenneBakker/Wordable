@@ -93,15 +93,14 @@ def edit_wordlist(wordlist_id):
             flash('Wordlist name is required!', 'error')
             return redirect(url_for('edit_wordlist', id=wordlist.id))
 
-        # 1. Get IDs currently in the database
         initial_ids = {int(aword['id']) for aword in words}
 
-        # 2. Get data from the form
         word_ids = request.form.getlist('word_ids[]')
         language_a_list = request.form.getlist('language_a[]')
         language_b_list = request.form.getlist('language_b[]')
 
         words_to_upsert = []
+        words_to_insert = []
         submitted_ids = set()
 
         for ind, lang_a, lang_b in zip_longest(word_ids, language_a_list, language_b_list, fillvalue=None):
@@ -119,11 +118,9 @@ def edit_wordlist(wordlist_id):
                         language_b=lang_b,
                         wordlist_id=wordlist.id
                     )
+                    words_to_insert.append(word.model_dump())
                 else:
-                    try:
-                        word_id = int(ind)
-                    except Exception:
-                        word_id = None
+                    word_id = int(ind)
                     submitted_ids.add(word_id)
                     word = WordResponse(
                         id=word_id,
@@ -131,24 +128,22 @@ def edit_wordlist(wordlist_id):
                         language_b=lang_b,
                         wordlist_id=wordlist.id
                     )
-
-                words_to_upsert.append(word.model_dump())
+                    words_to_upsert.append(word.model_dump())
 
         if not words_to_upsert:
             flash('At least one word pair is required!', 'error')
             return redirect(url_for('edit_wordlist', id=wordlist.id))
 
-        # 3. Identify IDs to delete: In DB, but NOT in the submitted form
         to_be_deleted = initial_ids - submitted_ids
 
-        # 4. Database Operations
         # Update the main list info
         wordlists_db.update_wordlist(column='wordlist_id', value=wordlist.id, item={'name': name})
 
         # Perform the Upsert (Updates existing, Inserts 'new' ones)
         words_db.upsert_words(words_to_upsert)
+        if words_to_insert:
+            words_db.insert_word(words_to_insert)
 
-        # Remove the ones the user deleted in the UI
         if to_be_deleted:
             words_db.delete_words_by_id(list(to_be_deleted))
 
@@ -167,11 +162,8 @@ def edit_wordlist(wordlist_id):
 
 @app.route('/wordlist/delete/<int:wordlist_id>', methods=['POST'])
 def delete_wordlist(wordlist_id):
-    wordlist = Wordlist.query.get_or_404(wordlist_id)
-    name = wordlist.name
-    db.session.delete(wordlist)
-    db.session.commit()
-    flash(f'Wordlist "{name}" deleted successfully!', 'success')
+    wordlists_db.delete_wordlist(id=wordlist_id)
+    flash(f'Wordlist deleted successfully!', 'success')
     return redirect(url_for('index'))
 
 @app.route('/practice/<int:wordlist_id>', methods=['GET', 'POST'])

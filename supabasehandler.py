@@ -95,6 +95,10 @@ class WordlistDB(SupabaseTable):
         response = self.update_where(self.table, column, value, item)
         return response
 
+    def delete_wordlist(self, id: int) -> sb.PostgrestAPIResponse:
+        response = self.delete_where(self.table, 'wordlist_id', id)
+        return response
+
 
 
 
