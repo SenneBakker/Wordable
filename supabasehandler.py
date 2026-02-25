@@ -1,6 +1,6 @@
 import supabase as sb
 from config import settings
-from models import ListResponse, WordResponse, InputList, InputWord
+from models.models import ListResponse, WordResponse, InputList, InputWord
 from typing import List, Any
 
 
