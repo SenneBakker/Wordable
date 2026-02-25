@@ -3,34 +3,12 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from supabasehandler import WordlistDB, WordsDB
-from models import ListResponse, WordResponse, InputList, InputWord
+from models import ListResponse, WordResponse, InputList, InputWord, ListOfWords
 
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-in-production'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///language_learning.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db = SQLAlchemy(app)
-
-
-# # Models
-# class Wordlist(db.Model):
-#     id = db.Column(db.Integer, primary_key=True)
-#     name = db.Column(db.String(100), nullable=False)
-#     created_at = db.Column(db.DateTime, default=datetime.now())
-#     word = db.relationship('Word', backref='wordlist', cascade='all, delete-orphan', lazy=True)
-#
-# class Word(db.Model):
-#     id = db.Column(db.Integer, primary_key=True)
-#     language_a = db.Column(db.String(200), nullable=False)
-#     language_b = db.Column(db.String(200), nullable=False)
-#     wordlist_id = db.Column(db.Integer, db.ForeignKey('wordlist.id'), nullable=False)
-
-
-# Create tables
-with app.app_context():
-    db.create_all()
 
 wordlists_db = WordlistDB()
 words_db = WordsDB()
@@ -83,7 +61,7 @@ def add_wordlist():
 @app.route('/wordlist/edit/<int:wordlist_id>', methods=['GET', 'POST'])
 def edit_wordlist(wordlist_id):
     wordlist = ListResponse.model_validate(wordlists_db.get_wordlist(wordlist_id).data[0])
-    words = words_db.get_words(wordlist.id).data
+    words = words_db.get_words(wordlist.id)
 
 
     if request.method == 'POST':
@@ -93,7 +71,7 @@ def edit_wordlist(wordlist_id):
             flash('Wordlist name is required!', 'error')
             return redirect(url_for('edit_wordlist', id=wordlist.id))
 
-        initial_ids = {int(aword['id']) for aword in words}
+        initial_ids = {int(aword.id) for aword in words}
 
         word_ids = request.form.getlist('word_ids[]')
         language_a_list = request.form.getlist('language_a[]')
@@ -149,14 +127,6 @@ def edit_wordlist(wordlist_id):
 
         flash(f'Wordlist "{name}" updated successfully!', 'success')
         return redirect(url_for('index'))
-
-
-        # to_be_deleted = new_ids - initial_ids
-        # response = wordlists_db.update_wordlist(column='wordlist_id', value=wordlist.id, item={'name':name})
-        # response = words_db.upsert_words(words_to_update)
-        # response = words_db.delete_words_by_id(list(to_be_deleted))
-        # flash(f'Wordlist "{name}" updated successfully!', 'success')
-        # return redirect(url_for('index'))
     
     return render_template('edit_wordlist.html', wordlist=wordlist, words=words)
 
@@ -168,16 +138,18 @@ def delete_wordlist(wordlist_id):
 
 @app.route('/practice/<int:wordlist_id>', methods=['GET', 'POST'])
 def practice(wordlist_id):
-    wordlist = Wordlist.query.get_or_404(wordlist_id)
+    wordlist = ListResponse.model_validate(wordlists_db.get_wordlist(wordlist_id).data[0])
+    words = ListOfWords(words_db.get_words(list_id=wordlist.id))
     
-    if not wordlist.words:
+    if not words:
         flash('This wordlist has no words to practice!', 'error')
         return redirect(url_for('index'))
+
 
     # Initialize session data if starting new practice
     if 'practice_id' not in session or session['practice_id'] != wordlist_id:
         session['practice_id'] = wordlist_id
-        session['words'] = [w.id for w in wordlist.words]
+        session['words'] = [w.id for w in words.listwords]
         session['incorrect_words'] = []
         session['current_index'] = 0
         session['retry_count'] = 0
@@ -185,7 +157,9 @@ def practice(wordlist_id):
     if request.method == 'POST':
         user_answer = request.form.get('answer', '').strip().lower()
         current_word_id = session['words'][session['current_index']]
-        current_word = Word.query.get(current_word_id)
+        
+        # current_word = Word.query.get(current_word_id)
+        current_word = words.get_word_by_id(current_word_id)
         correct_answer = current_word.language_b.strip().lower()
         
         if user_answer == correct_answer:
@@ -240,22 +214,23 @@ def practice(wordlist_id):
                         return redirect(url_for('index'))
         
         session.modified = True
-        return redirect(url_for('practice', id=wordlist_id))
+        return redirect(url_for('practice', wordlist_id=wordlist.id))
     
     # GET request - show current word
     current_word_id = session['words'][session['current_index']]
-    current_word = Word.query.get(current_word_id)
+    current_word = words.get_word_by_id(current_word_id)
     progress = {
         'current': session['current_index'] + 1,
         'total': len(session['words']),
         'incorrect_count': len(session['incorrect_words'])
     }
     
-    return render_template('practice.html', 
-                         wordlist=wordlist, 
-                         word=current_word, 
-                         progress=progress,
-                         retry=session['retry_count'] > 0)
+    return render_template('practice.html',
+                            wordlist_id = wordlist.id, 
+                            wordlist=wordlist, 
+                            word=current_word, 
+                            progress=progress,
+                            retry=session['retry_count'] > 0)
 
 if __name__ == '__main__':
     app.run(debug=True)
