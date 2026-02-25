@@ -61,10 +61,15 @@ class WordsDB(SupabaseTable):
         response = self.upsert(self.table, items)
         return response
 
-    def get_words(self, list_id: int) -> sb.PostgrestAPIResponse:
+    def get_words(self, list_id: int) -> List[WordResponse]:
         response = self.get_items_where(self.table, 'wordlist_id', list_id)
-        ## unpack into pydantic models
-        return response
+        rawList = response.data
+        unpackedList = []
+
+        for aword in rawList:
+            unpackedList.append(WordResponse.model_validate(aword))
+        
+        return unpackedList
 
     def delete_words_by_id(self, id_list: List[int]):
         response = self.delete_on_ids(self.table, id_list)
