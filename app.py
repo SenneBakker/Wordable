@@ -3,7 +3,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from supabasehandler import WordlistDB, WordsDB
-from models import ListResponse, WordResponse, InputList, InputWord, ListOfWords
+from models.models import ListResponse, WordResponse, InputList, InputWord, ListOfWords
 
 
 app = Flask(__name__)
@@ -28,6 +28,8 @@ def add_wordlist():
         if not name:
             flash('Wordlist name is required!', 'error')
             return redirect(url_for('add_wordlist'))
+            # consider changing to return render_template('add_wordlist.html'). No redirect is necessary in this case. 
+
 
         wordlist = InputList(name=name, word_count=1)
         new_id = wordlists_db.insert_wordlist({k: v for k, v in wordlist.model_dump().items() if v is not None})
@@ -82,8 +84,12 @@ def edit_wordlist(wordlist_id):
         submitted_ids = set()
 
         for ind, lang_a, lang_b in zip_longest(word_ids, language_a_list, language_b_list, fillvalue=None):
-            lang_a = lang_a.strip()
-            lang_b = lang_b.strip()
+            try:
+                lang_a = lang_a.strip()
+                lang_b = lang_b.strip()
+            except AttributeError:
+                app.logger.info(f"Failed to parse words in list: a: {lang_a}, b: {lang_b}. Break. ")
+                break
 
             if lang_a and lang_b:
                 # Check if it's an existing word or a brand new one
