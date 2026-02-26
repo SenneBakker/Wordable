@@ -4,7 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from supabasehandler import WordlistDB, WordsDB
 from models.models import ListResponse, WordResponse, InputList, InputWord, ListOfWords
-
+from services.wordServices import WordService, NoNameException
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-in-production'
@@ -12,6 +12,8 @@ app.config['SECRET_KEY'] = 'your-secret-key-change-in-production'
 
 wordlists_db = WordlistDB()
 words_db = WordsDB()
+wordService = WordService()
+
 
 
 # Routes
@@ -23,40 +25,17 @@ def index():
 @app.route('/wordlist/add', methods=['GET', 'POST'])
 def add_wordlist():
     if request.method == 'POST':
-        name = request.form.get('name', '').strip()
-        
-        if not name:
+
+        try:
+            wordService.insert_wordlist(request.form)
+        except NoNameException as e:
             flash('Wordlist name is required!', 'error')
-            return redirect(url_for('add_wordlist'))
-            # consider changing to return render_template('add_wordlist.html'). No redirect is necessary in this case. 
+            return render_template('add_wordlist.html')
+        except Exception as e: 
+            app.logger.error(f"Failed to inset new wordlist. Error: {e}")
+            flash("Something went wrong. Please try again later.")
 
-
-        wordlist = InputList(name=name, word_count=1)
-        new_id = wordlists_db.insert_wordlist({k: v for k, v in wordlist.model_dump().items() if v is not None})
-
-        # Add words
-        language_a_words = request.form.getlist('language_a[]')
-        language_b_words = request.form.getlist('language_b[]')
-        if len(language_a_words) != len(language_b_words):
-            flash("Can't save words without translation!")
-
-        words_to_add = []
-        for lang_a, lang_b in zip(language_a_words, language_b_words):
-            if lang_a.strip() and lang_b.strip():
-                entry = InputWord(
-                    language_a=lang_a.strip(),
-                    language_b=lang_b.strip(),
-                    wordlist_id=new_id
-                )
-                words_to_add.append(entry.model_dump())
-        word_count = min(len(language_a_words), len(language_b_words))
-        if word_count == 0:
-            flash('At least one word pair is required!', 'error')
-            return redirect(url_for('add_wordlist'))
-
-        words_db.insert_word(words_to_add)
-        flash(f'Wordlist "{name}" created successfully with {word_count} words!', 'success')
-        return redirect(url_for('index'))
+        return redirect(url_for('index'))       
     
     return render_template('add_wordlist.html')
 
@@ -138,7 +117,7 @@ def edit_wordlist(wordlist_id):
 
 @app.route('/wordlist/delete/<int:wordlist_id>', methods=['POST'])
 def delete_wordlist(wordlist_id):
-    wordlists_db.delete_wordlist(id=wordlist_id)
+    wordService.delete_wordlist(wordlist_id=wordlist_id)
     flash(f'Wordlist deleted successfully!', 'success')
     return redirect(url_for('index'))
 
