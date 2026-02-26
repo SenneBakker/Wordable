@@ -37,3 +37,10 @@ class ListOfWords:
         
         raise KeyError(f"word with id {ind} not found in list.")
 
+class PracticeSessionData(BaseModel): 
+    practice_id: int
+    words: list
+    incorrect_words: int
+    current_ind : int
+    retry_counter: int
+        
