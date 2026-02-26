@@ -1,0 +1,13 @@
+__pycache__/
+.git
+.env
+.vscode
+*.pyc
+*.pyo
+*.pyd
+README.md
+wordablevenv
+.github
+.idea
+.pytest_cache
+flask_lang_readme.md
